@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<script>
+  var password = prompt("Vui lòng nhập mật khẩu để truy cập:");
+  if (password !== "123456") { 
+    alert("Sai mật khẩu!");
+    window.location.href = "about:blank"; 
+  }
+</script>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luyện thi Chuyển giai đoạn - Cơ khí</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .japanese-text {
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+
+        .main-layout {
+            display: flex;
+            height: calc(100vh - 64px);
+            position: relative;
+        }
+
+        .questions-column {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            scroll-behavior: smooth;
+        }
+
+        .answer-sheet-column {
+            position: fixed;
+            right: 0;
+            top: 64px;
+            width: 380px;
+            height: calc(100vh - 64px);
+            background: white;
+            border-left: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 50;
+        }
+
+        .panel-hidden {
+            transform: translateX(100%);
+        }
+
+        #panel-toggle {
+            position: absolute;
+            left: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 100px;
+            background: #2563eb;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px 0 0 12px;
+            cursor: pointer;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 1rem;
+            text-align: center;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 4px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+            background-color: #eff6ff;
+        }
+
+        .question-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            max-width: 850px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .question-card.correct { border-color: #10b981; background-color: #f0fdf4; }
+        .question-card.incorrect { border-color: #ef4444; background-color: #fef2f2; }
+
+        .bubble-grid {
+            display: grid;
+            grid-template-columns: 40px 1fr 1fr;
+            gap: 10px;
+            padding: 1rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .bubble-btn {
+            padding: 8px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .bubble-btn.selected-true { background-color: #10b981; border-color: #10b981; color: white; }
+        .bubble-btn.selected-false { background-color: #ef4444; border-color: #ef4444; color: white; }
+
+        .q-image-container {
+            width: 100%;
+            max-height: 300px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            margin-top: 1rem;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .q-image {
+            max-width: 100%;
+            max-height: 300px;
+            object-fit: contain;
+        }
+
+        .timer-warning { animation: pulse 1s infinite; color: #dc2626; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="flex bg-white border-b h-16 items-center z-50 relative">
+    <div id="tab-quiz" class="tab-btn active" onclick="switchTab('quiz')">📝 Làm Bài Kiểm Tra</div>
+    <div id="tab-list" class="tab-btn" onclick="switchTab('list')">📚 Thư Viện Câu Hỏi</div>
+</div>
+
+<div id="view-quiz" class="main-layout">
+    <div class="questions-column" id="quiz-content"></div>
+
+    <div class="answer-sheet-column panel-hidden" id="answer-sidebar">
+        <div id="panel-toggle" onclick="toggleSidebar()">
+            <svg id="toggle-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+        </div>
+
+        <div class="p-4 bg-white border-b shadow-sm space-y-3">
+            <div id="score-display" class="hidden text-center p-3 rounded-xl bg-blue-100 border border-blue-200">
+                <span id="final-score" class="text-3xl font-black text-blue-700">0/20</span>
+                <p id="result-text" class="text-sm font-bold mt-1"></p>
+            </div>
+            
+            <button id="submit-btn" onclick="submitQuiz()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg transition transform active:scale-95">
+                NỘP BÀI
+            </button>
+            <button id="retry-btn" onclick="initQuiz()" class="w-full bg-slate-800 hover:bg-black text-white py-4 rounded-xl font-bold transition hidden shadow-lg">
+                LÀM BÀI MỚI	
+            </button>
+        </div>
+
+        <div class="p-4 bg-slate-100 flex items-center justify-between border-b">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 bg-red-500 rounded-full animate-ping"></div>
+                <span class="font-bold uppercase tracking-widest text-[10px] text-slate-500">Thời gian còn lại</span>
+            </div>
+            <div id="countdown-timer" class="text-2xl font-mono font-black tracking-widest text-slate-800">15:00</div>
+        </div>
+        
+        <div class="bubble-grid" id="bubble-sheet"></div>
+    </div>
+</div>
+
+<div id="view-list" class="hidden overflow-y-auto h-[calc(100vh-64px)] p-8 bg-white">
+    <div id="full-list-content" class="max-w-4xl mx-auto"></div>
+</div>
+
+<script>
+    const rawData = [
+        
+
+//*********************************************************************************************************************************		
+        // 1. MÁY TIỆN ************************************************************************************************************
+        { 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "Aは　しんおしだい　です。", 
+            r: "A wa shinosidai desu.", 
+            v: "A là ụ chống tâm (tailstock).", 
+            e: "Ụ chống tâm dùng để đỡ phôi dài hoặc gắn mũi khoan.",
+            a: true, 
+            img: "https://i.imgur.com/q2qDJar.png"
+        },
+        { 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "Aは　はものだい　です。", 
+            r: "A wa hamonodai desu.", 
+            v: "A là đài gá dao.", 
+            e: "Đài gá dao nằm ở giữa máy, dùng để kẹp dao tiện.",
+            a: false, 
+            img: "https://i.imgur.com/OsZ1Fi4.png"
+        },
+		{ 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "Aは　はものだい　です。", 
+            r: "A wa hamonodai desu.", 
+            v: "A là đài gá dao.", 
+            e: "Đài gá dao nằm ở giữa máy, dùng để kẹp dao tiện.",
+            a: true, 
+            img: "https://i.imgur.com/bjIFFTn.png"
+        },
+		{ 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "これは　せんばんで　かこうできます。", 
+            r: "Kore wa senban de kakō dekimasu.", 
+            v: "Cái này có thể gia công bằng máy tiện.", 
+            e: "Máy tiện là máy công cụ dùng để gia công các chi tiết có dạng hình trụ tròn bằng cách quay tròn phôi và cắt gọt.",
+            a: true, 
+            img: "https://i.imgur.com/RcburkF.png"
+        },
+		{ 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "これは　せんばんで　かこうできます。", 
+            r: "Kore wa senban de kakō dekimasu.", 
+            v: "Cái này có thể gia công bằng máy tiện.", 
+            e: "Máy tiện là máy công cụ dùng để gia công các chi tiết có dạng hình trụ tròn bằng cách quay tròn phôi và cắt gọt.",
+            a: true, 
+            img: "https://i.imgur.com/fEflW1r.png"
+        },
+		{ 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "これは　せんばんで　かこうできます。", 
+            r: "Kore wa senban de kakō dekimasu.", 
+            v: "Cái này có thể gia công bằng máy tiện.", 
+            e: "Hình ảnh là một tấm kim loại phẳng. Máy tiện chỉ dùng để gia công các chi tiết hình trụ tròn xoay, không dùng để gia công tấm phẳng như thế này.",
+            a: false, 
+            img: "https://i.imgur.com/yFVVJ1G.png"
+        },
+        { 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "せんばんでは　ねじを　かこうすることは　できません。", 
+            r: "Senban de wa neji o kakō suru koto wa dekimasen.", 
+            v: "Trên máy tiện, không thể gia công ren.", 
+            e: "Máy tiện hoàn toàn có thể gia công ren bằng cách dùng dao tiện ren và cài đặt bước tiến.",
+            a: false
+        },
+		{ 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "せんばんでは　テーパの　かこうが　できません。", 
+            r: "Senban de wa tēpa no kakō ga dekimasen.", 
+            r: "Senban de wa tēpa no kakō ga dekimasen.", 
+            v: "Trên máy tiện, không thể thực hiện gia công côn.", 
+            e: "Sai. Máy tiện hoàn toàn có thể gia công côn bằng cách xoay bàn xe dao trên hoặc đánh lệch ụ động. Đây là một trong những cách gia công cơ bản của máy tiện.",
+            a: false 
+        },
+        { 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "ふつうせんばんでは　テーパの　かこうが　できます。", 
+            r: "Futsuu senban de wa tēpa no kakō ga dekimasu.", 
+            v: "Ở máy tiện thông thường, có thể gia công mặt côn (taper).", 
+            e: "Bằng cách xoay đài dao hoặc sử dụng thiết bị tiện côn.",
+            a: true 
+        },
+        { 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "せんばんは　はものを　まわして　かこうします。", 
+            r: "Senban wa hamono o mawashite kakō shimasu.", 
+            v: "Máy tiện gia công bằng cách quay dụng cụ cắt.", 
+            e: "Sai. Máy tiện quay phôi, còn dao đứng yên hoặc tịnh tiến.",
+            a: false 
+        },
+		{ 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "せんばんでは　バイトを　まわして　かこうします。", 
+            r: "Senban de wa baito o mawashite kakō shimasu.", 
+            v: "Ở máy tiện, người ta xoay dao tiện để gia công.", 
+            e: "Sai. Ở máy tiện, vật liệu (phôi) xoay tròn, còn dao tiện (baito) di chuyển tịnh tiến. Máy xoay dao tiện là máy phay.",
+            a: false
+        },
+        { 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "せんばんの　しんおしだいは　ながい　ワークを　かこうするときに　つかいます。", 
+            r: "Senban no shinosidai wa nagai wāku o kakō suru toki ni tsukaimasu.", 
+            v: "Ụ động của máy tiện được dùng khi gia công phôi dài.", 
+            e: "Đúng, để tránh phôi bị rung hoặc võng.",
+            a: true 
+        },
+		{
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "せんばんでは　おくりそうち　には　だいけいねじが　よく　つかわれます。", 
+            r: "Senban de wa okurisōchi ni wa daikei neji ga yoku tsukawaremasu.", 
+            v: "Trong máy tiện, ren hình thang thường được sử dụng cho thiết bị truyền động (bộ phận đẩy phôi/dao).", 
+            e: "Đúng. Ren hình thang (Daikei neji) có khả năng truyền lực tốt và độ bền cao, thường được dùng làm trục vít me trong cơ cấu truyền động của máy tiện.",
+            a: true 
+        }, 
+		{
+           cat: "1. 旋盤 (Máy tiện)", 
+           q: "せんばんでは　おくりそうち　には　おやねじが　よく　つかわれます。", 
+           r: "Senban de wa okurisōchi ni wa oyaneji ga yoku tsukawaremasu.", 
+           v: "Trong máy tiện, trục vít me chính thường được sử dụng cho thiết bị truyền động.", 
+           e: "Đúng. Trục vít me chính (Oyaneji) là bộ phận quan trọng để truyền chuyển động tịnh tiến cho bàn dao, giúp máy tiện có thể gia công chính xác.",
+           a: true 
+        }, 
+		{
+           cat: "1. 旋盤 (Máy tiện)", 
+           q: "せんばんの　はものだいには　いっぱんに　バイトを　とりつけます。", 
+           r: "Senban no hamonodai ni wa ippan ni baito o toritsukemasu.", 
+           v: "Thông thường, người ta gắn dao tiện vào đài gá dao của máy tiện.", 
+           e: "Đúng. Đài gá dao (Hamonodai) là bộ phận giữ chặt dao tiện (Baito) để thực hiện quá trình cắt gọt kim loại.",
+           a: true 
+        }, 
+		{
+           cat: "1. 旋盤 (Máy tiện)", 
+           q: "しんおしじくの　あなは　テーパに　なっています。", 
+           r: "Shin-oshijiku no ana wa tēpa ni natte imasu.", 
+           v: "Lỗ của trục ụ động có hình dạng côn.", 
+           e: "Đúng. Lỗ trục ụ động được làm hình côn để có thể lắp các dụng cụ như mũi tâm hoặc mũi khoan một cách chính xác và chắc chắn.",
+           a: true 
+        },
+		{
+           cat: "1. 旋盤 (Máy tiện)", 
+           q: "せんばんでは　センタに　つかわれている　テーパは　モールステーパです。", 
+           r: "Senban de wa senta ni tsukawarete iru tēpa wa mōrusu tēpa desu.", 
+           v: "Trong máy tiện, loại côn được sử dụng cho mũi tâm là côn Morse.", 
+           e: "Đúng. Côn Morse (Morse Taper) là tiêu chuẩn quốc tế cho các bộ phận tháo lắp nhanh như mũi tâm hoặc mũi khoan trên máy tiện nhờ khả năng tự định tâm tốt.",
+           a: true 
+        }, 
+		{
+           cat: "1. 旋盤 (Máy tiện)", 
+           q: "せんばんでは　しゅじくと　かこうする　しなものは　ちがうかいてんすうで　まわっています。", 
+           r: "Senban de wa shujiku to kakō suru shinamono wa chigau kaitensū de mawatte imasu.", 
+           v: "Trong máy tiện, trục chính và vật liệu gia công quay với tốc độ khác nhau.", 
+           e: "Sai. Vật liệu gia công được kẹp chặt vào trục chính thông qua mâm cặp, nên chúng phải quay cùng một tốc độ (cùng số vòng quay).",
+           a: false 
+        },
+		{
+           cat: "1. 旋盤 (Máy tiện)", 
+           q: "ふつうせんばんでは　おくりが　はやい　かこうすると　ひょうめん　あらさが　よくなります。", 
+           r: "Futū senban de wa okuri ga hayai kakō suru to hyōmen arasa ga yoku narimasu.", 
+           v: "Ở máy tiện thông thường, nếu gia công với tốc độ đẩy dao nhanh thì độ nhám bề mặt sẽ trở nên tốt (mịn) hơn.", 
+           e: "Sai. Tốc độ đẩy dao càng nhanh thì bề mặt gia công càng thô (xấu). Để bề mặt đẹp và mịn hơn, cần phải giảm tốc độ đẩy dao.",
+           a: false 
+        },
+        { 
+            cat: "1. 旋盤 (Máy tiện)", 
+            q: "ふつうせんばん　では　おくり　が　おそい　かこうする　と　ひょうめん　あらさが　よくなります。", 
+            r: "Futsuu senban de wa okuri ga osoi kakō suru to hyōmen arasaga yoku narimasu.", 
+            v: "Gia công với tốc độ tiến dao chậm thì độ nhám bề mặt sẽ tốt lên (bóng hơn).", 
+            e: "Tốc độ tiến dao càng nhỏ bề mặt càng mịn.",
+            a: true, 
+			
+        },
+		
+		{ 
+           cat: "1. 旋盤 (Máy tiện)", 
+           q: "NCこうさくきかいの　いどうしれいには　アブソリュートほうしきと　インクレメンタルほうしきが　あります。", 
+           r: "NC kousaku kikai no idou shirei ni wa abusoryuuto houshiki to inkurementaru houshiki ga arimasu.", 
+           v: "Trong lệnh di chuyển của máy công cụ NC, có phương thức tuyệt đối và phương thức tăng dần.", 
+           e: "Đúng. Đây là hai phương thức thiết lập tọa độ chính: Absolute (tuyệt đối - tính từ điểm gốc cố định) và Incremental (tăng dần - tính từ vị trí hiện tại).", 
+           a: true
+        },
+		
+//******************************************************************************************************************************		 
+        // 2. MÁY PHAY ********************************************************************************************************
+        { 
+            cat: "2. フライス盤 (Máy phay)", 
+            q: "フライスばんには　ひざがたフライスばん　ベッドがたフライスばん　などが　あります。", 
+            r: "Furaisuban ni wa hizagata... beddogata... ga arimasu.", 
+            v: "Máy phay có các loại như máy phay kiểu đầu gối, kiểu giường...", 
+            e: "Đây là các kiểu cấu trúc máy phay cơ bản.",
+            a: true 
+        },
+        { 
+            cat: "2. フライス盤 (Máy phay)", 
+            q: "フライスばんは　はものを　まわして　かこうします。", 
+            r: "Furaisuban wa hamono o mawashite kakō shimasu.", 
+            v: "Máy phay gia công bằng cách quay dụng cụ cắt.", 
+            e: "Đúng, dao phay quay tròn còn phôi di chuyển trên bàn máy.",
+            a: true 
+        },
+        { 
+            cat: "2. フライス盤 (Máy phay)", 
+            q: "フライスばんで　かこうするときは　テーブルじょうめんに　ワークを　とりつけます。", 
+            r: "Furaisuban de kakō suru toki wa tēburu jōmen ni wāku o toritsukemasu.", 
+            v: "Khi gia công bằng máy phay, phôi được lắp trên mặt bàn máy.", 
+            e: "Phôi được kẹp bằng ê-tô hoặc đồ gá trên bàn máy.",
+            a: true 
+        },
+		{
+            cat: "2. フライス盤 (Máy phay)", 
+            q: "フライスばんで　かこうするときは　しゅじくに　ワークを　とりつけます。", 
+            r: "Furaisuban de kakō suru toki wa shujiku ni wāku o toritsukemasu.", 
+            v: "Khi gia công bằng máy phay, người ta gắn vật liệu (phôi) vào trục chính.", 
+            e: "Sai. Ở máy phay, dao cắt được gắn vào trục chính để quay tròn, còn vật liệu (phôi) được gắn cố định trên bàn máy.",
+            a: false 
+        }, 
+		{
+            cat: "2. フライス盤 (Máy phay)", 
+            q: "フライスばんでは　みぞかこうは　できません。", 
+            r: "Furaisuban de wa mizo kakō wa dekimasen.", 
+            v: "Ở máy phay thì không thể gia công rãnh.", 
+            e: "Sai. Một trong những chức năng chính của máy phay là gia công các loại rãnh (mizo) khác nhau bằng dao phay ngón hoặc dao phay đĩa.",
+            a: false 
+        }, 	
+        { 
+            cat: "2. フライス盤 (Máy phay)", 
+            q: "フライスばんで　みぞかこうは　できます。", 
+            r: "Furaisuban de mizokakō wa dekimasu.", 
+            v: "Trên máy phay, có thể gia công rãnh.", 
+            e: "Máy phay rất mạnh về gia công các loại rãnh.",
+            a: true 
+        },
+		{
+            cat: "2. フライス盤 (Máy phay)", 
+            q: "これは　フライスばんで　かこうできます。", 
+            r: "Kore wa furaisuban de kakō dekimasu.", 
+            v: "Cái này có thể gia công bằng máy phay.", 
+            e: "Đúng với các chi tiết dạng khối phẳng và rãnh. Máy phay sử dụng dao cắt quay tròn để tạo ra các bề mặt phẳng và rãnh phức tạp.",
+            a: true,
+	        img: "https://i.imgur.com/lM0jYRX.png"			
+        },
+		{
+            cat: "2. フライス盤 (Máy phay)",
+            q: "これは　フライスばんで　かこうします。", 
+            r: "Kore wa furaisuban de kakō shimasu.", 
+            v: "Cái này được gia công bằng máy tiện.", 
+            e: "Máy tiện là máy công cụ dùng để gia công các chi tiết có dạng hình trụ tròn bằng cách quay tròn phôi và cắt gọt.",
+            a: false,
+            img: "https://i.imgur.com/fEflW1r.png"			
+        },
+		{
+           cat: "2. フライス盤 (Máy phay)", 
+           q: "これは　フライスばんで　かこうできます。", 
+           r: "Kore wa furaisuban de kakō dekimasu.", 
+           v: "Cái này có thể gia công bằng máy phay.", 
+           e: "Hình ảnh cho thấy các chi tiết dạng tấm phẳng và có rãnh bậc. Đây là những sản phẩm điển hình được gia công bằng máy phay (Furaisuban).",
+           a: true,
+		   img: "https://i.imgur.com/iCxBFjE.png"
+        },
+
+//**************************************************************************************************************************************
+        // 3. DỤNG CỤ ******************************************************************************************************************
+        { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "チャックは　ざいりょうを　つかむ　どうぐです。", 
+            r: "Chakku wa zairyō o tsukamu dōgu desu.", 
+            v: "Mâm cặp là dụng cụ để kẹp vật liệu.", 
+            e: "Mâm cặp gắn trên trục chính máy tiện để giữ chặt phôi.",
+            a: true 
+        },
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "チャックは　ワークを　こていするために　つかいます。", 
+            r: "Chakku wa wāku o kotei suru tame ni tsukaimasu.", 
+            v: "Mâm cặp được sử dụng để cố định vật liệu gia công (phôi).", 
+            e: "Đúng. Mâm cặp (Chuck) là bộ phận dùng để kẹp và giữ chặt phôi (work) trên trục chính của máy tiện hoặc máy phay.",
+            a: true
+        },
+        { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "コレットチャックは　いっぱんに　まるぼうなどの　がいけいを　しめつけて　こうさくぶつを　こていします。", 
+            r: "Koretto chakku wa ippan ni marubō nado no gaikei o shimetsukete kōsakubutsu o kotei shimasu.", 
+            v: "Mâm cặp collet thông thường được dùng để siết chặt đường kính ngoài của các thanh tròn nhằm cố định vật liệu gia công.", 
+            e: "Đúng. Collet chuck là loại đồ gá dùng lực ép đồng tâm để kẹp chặt các thanh tròn (marubō) hoặc các chi tiết có đường kính nhỏ với độ chính xác cao.",
+            a: true
+        },
+        { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "せんばんかこうで　みつづめれんどうチャックを　しようして　ずのような　かこうは　できます。", 
+            r: "Senban kakō de mitsuzume rendō chakku o shiyōshite...", 
+            v: "Có thể dùng mâm cặp 3 chấu tự định tâm để gia công phôi hình dạng không đối xứng như hình.", 
+            e: "Sai. Phôi không đối xứng phải dùng mâm cặp 4 chấu độc lập.",
+            a: false,
+            img: "https://i.imgur.com/WXBSfEn.png"
+        },
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "せんばんかこうで　みつづめれんどうチャックを　しようして　ずのような　かこうは　できません。", 
+            r: "Senban kakō de mitsuzume rendō chakku o shiyō shite zu no yō na kakō wa dekimasen.", 
+            v: "Trong gia công máy tiện, không thể sử dụng mâm cặp 3 chấu tự định tâm để gia công (lệch tâm) như hình vẽ.", 
+            e: "Đúng. Mâm cặp 3 chấu tự định tâm (Mitsuzume rendō chakku) luôn giữ phôi ở giữa tâm. Để gia công lỗ lệch tâm như trong hình, người ta phải dùng mâm cặp 4 chấu độc lập (Yotsuzume chakku).",
+            a: true,
+            img: "https://i.imgur.com/WXBSfEn.png"
+        },
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "せんばんかこうで　よつづめチャックを　しようして　ずのような　かこうは　できます。", 
+            r: "Senban kakō de yotsuzume chakku o shiyō shite zu no yō na kakō wa dekimasu.", 
+            v: "Trong gia công máy tiện, có thể sử dụng mâm cặp 4 chấu để gia công (lệch tâm) như hình vẽ.", 
+            e: "Đúng. Để gia công các chi tiết lệch tâm (eccentric) như trong hình, ta cần sử dụng mâm cặp 4 chấu độc lập để có thể điều chỉnh tâm của phôi theo ý muốn.",
+            a: true,
+            img: "https://i.imgur.com/WXBSfEn.png"
+        },
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "せんばん　かこうで　よつづめチャックを　しようして　ずのうような　かこうは　できません。", 
+            r: "Senban kakō de yotsuzume chakku o shiyō shite zu no yō na kakō wa dekimasen.", 
+            v: "Trong gia công máy tiện, không thể sử dụng mâm cặp 4 chấu để gia công (lệch tâm) như hình vẽ.", 
+            e: "Sai. Mâm cặp 4 chấu độc lập là công cụ chuyên dụng để gia công các chi tiết lệch tâm như trong hình nhờ khả năng điều chỉnh từng chấu riêng biệt.",
+            a: false,
+            img: "https://i.imgur.com/WXBSfEn.png"
+        },
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "これは　つけはバイトです。", 
+            r: "Kore wa tsukeha baito desu.", 
+            v: "Đây là loại dao tiện hàn khối (Tsukeha-baito).", 
+            e: "Sai. Hình ảnh minh họa một loại dao tiện sử dụng mảnh chíp thay thế. Dao Tsukeha-baito thực tế là loại dao có phần hợp kim được hàn chết vào thân thép.",
+            a: false,
+            img: "https://i.imgur.com/1T9hKyv.png"
+        },
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "これは　クランプバイトです。", 
+            r: "Kore wa kurampu baito desu.", 
+            v: "Đây là loại dao tiện kiểu kẹp (Clamp baito).", 
+            e: "Đúng. Hình ảnh minh họa loại dao sử dụng cơ cấu kẹp để giữ cố định mảnh hợp kim (chip) vào cán dao. Loại dao này cho phép thay thế mảnh chip nhanh chóng khi bị mòn.",
+            a: true,
+            img: "https://i.imgur.com/1T9hKyv.png"
+        }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "これは　つけはバイトです。", 
+            r: "Kore wa tsukeha baito desu.", 
+            v: "Đây là loại dao tiện hàn khối (Tsukeha-baito).", 
+            e: "Đúng. Hình ảnh cho thấy phần mũi cắt hợp kim được hàn cố định vào thân dao bằng thép. Đây là loại dao tiện truyền thống, cần phải mài lại mũi dao sau một thời gian sử dụng.",
+            a: true,
+            img: "https://i.imgur.com/tUyVkxr.png"
+        }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "クランプバイトは　チップを　ボディに　きかいてきに　しめつけた　ものです。", 
+            r: "Kurampu baito wa chippu o bodi ni kikaiteki ni shimetsuketa mono desu.", 
+            v: "Dao tiện kiểu kẹp là loại mà mảnh chip được siết chặt vào thân dao bằng phương pháp cơ khí.", 
+            e: "Đúng. Loại dao này sử dụng vít hoặc mỏ kẹp để giữ mảnh hợp kim, giúp việc thay thế lưỡi cắt trở nên dễ dàng và chính xác hơn so với loại dao hàn.",
+            a: true 
+        }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "つけはバイトは　チップを　ボディに　きかいてきに　しめつけたものです。", 
+            r: "Tsukeha baito wa chippu o bodi ni kikaiteki ni shimetsuketa mono desu.", 
+            v: "Dao tiện hàn là loại mà mảnh chip được siết chặt vào thân dao bằng phương pháp cơ khí.", 
+            e: "Sai. Dao tiện hàn (Tsukeha-baito) có mảnh chip được hàn chết vào thân. Loại được siết chặt bằng cơ khí (vít, kẹp) gọi là dao tiện kiểu kẹp (Clamp baito).",
+            a: false 
+        }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "クランプバイトは　チップを　ボディに　ろうづけした　ものです。", 
+            r: "Kurampu baito wa chippu o bodi ni rōzuke shita mono desu.", 
+            v: "Dao tiện kiểu kẹp là loại có mảnh chip được hàn vào thân dao.", 
+            e: "Sai. Dao tiện kiểu kẹp sử dụng vít hoặc mỏ kẹp cơ khí để giữ chip. Loại được hàn vào thân dao gọi là dao tiện hàn (Tsukeha-baito).",
+            a: false 
+        }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "クランプバイトは　チップの　けんさくを　しなくても　よいです。", 
+            r: "Kurampu baito wa chippu no kensaku o shinakutemo yoi desu.", 
+            v: "Đối với dao tiện kiểu kẹp, không cần phải mài mảnh chip cũng được.", 
+            e: "Đúng. Mảnh chip của dao tiện kiểu kẹp là loại dùng một lần (vứt đi sau khi mòn hết các góc). Khi mòn, ta chỉ cần thay mới hoặc xoay mặt chip mà không cần tốn công mài lại như dao hàn.",
+            a: true 
+        }, 
+        { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "クランプバイトの　チップの　かたちには　さんかくの　ものは　ありません。", 
+            r: "Kurampu baito no chippu no katachi ni wa sankaku no mono wa arimasen.", 
+            v: "Trong các hình dạng của mảnh chip dùng cho dao tiện kiểu kẹp, không có loại hình tam giác.", 
+            e: "Sai. Mảnh chip hình tam giác (Sankaku) rất phổ biến trong gia công tiện. Ngoài ra còn có các hình dạng khác như hình thoi, hình vuông và hình tròn.",
+            a: false 
+        }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "クランプバイトの　チップの　かたちには　まるい　ものも　あります。", 
+            r: "Kurampu baito no chippu no katachi ni wa marui mono mo arimasu.", 
+            v: "Trong các hình dạng của mảnh chip dùng cho dao tiện kiểu kẹp, có cả loại hình tròn.", 
+            e: "Đúng. Mảnh chip hình tròn thường được sử dụng để gia công các bề mặt cong hoặc khi cần lưỡi cắt có độ bền cao để phá thô vật liệu cứng.",
+            a: true 
+        }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "この　バイトは　がいけいを　かこうするときに　つかいます。", 
+            r: "Kono baito wa gaikei o kakō suru toki ni tsukaimasu.", 
+            v: "Loại dao tiện này được sử dụng khi gia công đường kính ngoài.", 
+            e: "Đúng. Đây là dao tiện ngoài. Nó được thiết kế để cắt gọt bề mặt bên ngoài của phôi. Đối với việc gia công lỗ bên trong, người ta phải dùng loại dao chuyên dụng gọi là dao tiện lỗ.",
+            a: true,
+            img: "https://i.imgur.com/1T9hKyv.png"
+        }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "この　バイトでは　たんめんを　かこうすることは　できません。", 
+            r: "Kono baito de wa tanmen o kakō suru koto wa dekimasen.", 
+            v: "Loại dao tiện này không thể dùng để gia công mặt đầu.", 
+            e: "Sai. Đây là loại dao tiện đa năng. Bằng cách điều chỉnh góc gá dao và hướng di chuyển của bàn xe dao, người thợ hoàn toàn có thể sử dụng nó để tiện mặt phẳng đầu (mặt ngang) của phôi.",
+            a: false,
+            img: "https://i.imgur.com/i7JsyKH.png"
+        }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "この　バイトは　ないけいを　かこうするときに　つかいます。", 
+            r: "Kono baito wa naikei o kakō suru toki ni tsukaimasu.", 
+            v: "Loại dao tiện này được sử dụng khi gia công đường kính trong (gia công lỗ).", 
+            e: "Đúng. Đây là dao tiện lỗ. Thiết kế thân dài và mũi dao đặc thù cho phép nó đi vào bên trong phôi để mở rộng hoặc làm láng bề mặt lỗ.",
+            a: true,
+            img: "https://i.imgur.com/8UHjUDF.png"
+        },
+        { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "これは　センター　あな　ドリル　です。", 
+            r: "Kore wa sentā ana doriru desu.", 
+            v: "Đây là mũi khoan tâm (center drill).", 
+            e: "Dùng để khoan định vị trước khi khoan lỗ lớn.",
+            a: true, 
+            img: "https://i.imgur.com/HojS2Oh.jpeg"
+        },
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "ドリルは　めねじを　きる　はものです。", 
+            r: "Doriru wa meneji o kiru hamono desu.", 
+            v: "Mũi khoan là dụng cụ dùng để cắt ren trong.", 
+            e: "Sai. Mũi khoan (Drill) dùng để tạo lỗ tròn. Dụng cụ để cắt ren trong (meneji) gọi là mũi Taro (Tap).",
+            a: false 
+        }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "ドリルは　あなを　あける　ものです。", 
+            r: "Doriru wa ana o akeru mono desu.", 
+            v: "Mũi khoan là dụng cụ dùng để khoan lỗ.", 
+            e: "Đúng. Đây là định nghĩa cơ bản về mũi khoan. Nó được sử dụng để tạo lỗ tròn trên vật liệu bằng cách quay và tiến vào phôi.",
+            a: true 
+        }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "ドリルは　せんたんに　きれはを　もち　あなあけ　かこうに　つかいます。", 
+            r: "Doriru wa sentan ni kireha o mochi ana-ake kakō ni tsukaimasu.", 
+            v: "Mũi khoan có lưỡi cắt ở đầu và được dùng để gia công khoan lỗ.", 
+            e: "Đúng. Mũi khoan là công cụ cơ bản nhất để tạo lỗ. Lưỡi cắt chính nằm ở phần đầu nhọn giúp nó đâm xuyên và cắt gọt vật liệu khi quay.",
+            a: true 
+         }, 
+		 { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "せんばんで　ずのような　あなあけを　するときは　はじめに　ドリルを　つかいます。", 
+            r: "Senban de zu no yō na ana-ake o suru toki wa hajime ni doriru o tsukaimasu.", 
+            v: "Khi khoan lỗ như trong hình bằng máy tiện, đầu tiên người ta sử dụng mũi khoan.", 
+            e: "Đúng. Để tạo ra một cái lỗ từ phôi đặc, bước đầu tiên luôn là sử dụng mũi khoan (Drill) để phá lõi. Sau đó mới có thể dùng các loại dao khác để mở rộng hoặc làm tinh lỗ.",
+            a: true,
+            img: "https://i.imgur.com/5bXodjw.png"
+         },
+		 { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "これは　けがきばりです。", 
+            r: "Kore wa kegakibari desu.", 
+            v: "Đây là kim vạch (Kegakibari).", 
+            e: "Sai. Đây là cái đột (Ponchi). Kim vạch thường mỏng manh hơn dùng để vẽ đường, còn Ponchi có thân dày để đóng búa tạo lỗ tâm định vị cho mũi khoan.",
+            a: false,
+            img: "https://i.imgur.com/jcR7jnh.png"
+         },
+		 { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "あおたけは　いっぱんに　けがきさぎょうに　つかいます。", 
+            r: "Aotake wa ippan ni kegaki sagyō ni tsukaimasu.", 
+            v: "Dung dịch nhuộm xanh (Aotake) thường được sử dụng trong công việc lấy dấu.", 
+            e: "Đúng. Aotake được quét lên bề mặt kim loại giúp các đường vạch dấu từ kim vạch (kegakibari) trở nên rõ ràng và dễ nhìn thấy hơn, giúp tăng độ chính xác khi gia công.",
+            a: true 
+         }, 
+		 { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "けがきばりの　せんたんは　いっぱんに　するどく　とがっています。", 
+            r: "Kegakibari no sentan wa ippan ni surudoku togatte imasu.", 
+            v: "Đầu của kim vạch thông thường được mài rất sắc nhọn.", 
+            e: "Đúng. Đầu kim vạch phải sắc nhọn để có thể vạch được những đường kẻ cực mảnh và chính xác trên bề mặt phôi. Nếu đầu kim bị tù, đường vạch sẽ dày và gây sai số khi gia công.",
+            a: true 
+         }, 
+		 { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "けがきばりの　せんたんは　やきいれされ　かたくなっています。", 
+            r: "Kegakibari no sentan wa yaki-ire sare kataku natte imasu.", 
+            v: "Đầu của kim vạch được tôi cứng và trở nên rất cứng.", 
+            e: "Đúng. Vì kim vạch dùng để vạch dấu lên sắt thép, nên đầu của nó cần phải được nhiệt luyện (tôi cứng) để có độ cứng cao hơn vật liệu cần vạch dấu, tránh việc bị mòn đầu kim nhanh chóng.",
+            a: true 
+         }, 
+		 { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "けがきばりの　せんたんは　まるいほうが　よいです。", 
+            r: "Kegakibari no sentan wa marui hō ga yoi desu.", 
+            v: "Đầu của kim vạch tròn thì tốt hơn.", 
+            e: "Sai. Đầu kim vạch phải thật sắc nhọn mới có thể vạch được những đường kẻ mảnh và chính xác. Nếu đầu kim bị tròn (cùn), đường vạch sẽ to và gây ra sai số khi cắt gọt.",
+            a: false 
+         }, 
+		 { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "これは　トースカンです。", 
+            r: "Kore wa tōsukan desu.", 
+            v: "Đây là cây vạch dấu (Tōsukan).", 
+            e: "Đúng. Tōsukan là dụng cụ dùng để căn chỉnh chiều cao mũi dao với đường nối tâm phôi và mũi chống tâm. Nó có một cây kim vạch có thể điều chỉnh độ cao và góc độ linh hoạt.",
+            a: true,
+            img: "https://i.imgur.com/8TGocOy.png"
+         }, 
+		 { 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "これは　トースカンです。", 
+            r: "Kore wa tōsukan desu.", 
+            v: "Đây là bàn vạch dấu (Tōsukan).", 
+            e: "Sai. Đây là Thước đo chiều cao (Haitogēji). Điểm khác biệt lớn nhất là nó có vạch chia độ để đo kích thước chính xác, trong khi Tōsukan không có vạch chia độ.",
+            a: false,
+            img: "https://i.imgur.com/BaAV7wM.png"
+         }, 
+		{ 
+            cat: "3. 道具・刃物 (Dụng cụ)", 
+            q: "バイトは　はものだいに　ボルトで　しめつけます。", 
+            r: "Baito wa hamonodai ni boruto de shimetsukemasu.", 
+            v: "Dao tiện được xiết chặt vào đài gá dao bằng bu lông.", 
+            e: "Đúng. Đây là thao tác cơ bản để cố định dao tiện (baito) lên đài gá dao (hamonodai) một cách chắc chắn trước khi gia công.", 
+            a: true
+        },
+		 
+//***************************************************************************************************************************************		 
+        // 4. ĐO LƯỜNG ******************************************************************************************************************
+        { 
+            cat: "4. 測定 (Đo lường)", 
+            q: "スケールは　ながさを　はかる　どうぐです。", 
+            r: "Sukēru wa nagasa o hakaru dōgu desu.", 
+            v: "Thước lá là dụng cụ để đo chiều dài.", 
+            e: "Thước lá (thước thép) dùng cho các phép đo đơn giản.",
+            a: true 
+        },
+        { 
+            cat: "4. 測定 (Đo lường)", 
+            q: "せんばんで　かこうした　がいけいを　はかるときは　スケールのほうが　ノギスより　せいかくです。", 
+            r: "Sukēru no hō ga nogisu yori seikaku desu.", 
+            v: "Khi đo đường kính ngoài, thước lá chính xác hơn thước cặp.", 
+            e: "Sai. Thước cặp (Nogisu) chính xác hơn thước lá rất nhiều.",
+            a: false 
+        },
+		{ 
+            cat: "4. 測定 (Đo lường)", 
+            q: "ノギスは　0.1ｍｍいかの　たんいは　はかることが　できません。", 
+            r: "Nogisu wa 0.1mm ika no tan-i wa hakaru koto wa dekimasen.", 
+            v: "Thước cặp không thể đo được các đơn vị nhỏ hơn 0,1mm.", 
+            e: "Sai. Thước cặp thông dụng thường có độ chính xác (vạch chia nhỏ nhất) là 0,05mm hoặc 0,02mm. Do đó, nó hoàn toàn có thể đo được các đơn vị nhỏ hơn 0,1mm.",
+            a: false 
+        },
+		{ 
+    cat: "4. 測定 (Đo lường)", 
+    q: "ノギスには　あなの　ふかさを　はかれるものも　あります。", 
+    r: "Nogisu ni wa ana no fukasa o hakareru mono mo arimasu.", 
+    v: "Trong các loại thước cặp, cũng có loại có thể đo được độ sâu của lỗ.", 
+    e: "Đúng. Thước cặp có thanh đo sâu (depth bar) ở phần đuôi, cho phép người dùng đo độ sâu của lỗ hoặc các rãnh một cách tiện lợi.",
+    a: true 
+}, 　
+{ 
+    cat: "4. 測定 (Đo lường)", 
+    q: "ノギスでは　ないけいすんぽうを　はかることは　できません。", 
+    r: "Nogisu de wa naikei sunpō o hakaru koto wa dekimasen.", 
+    v: "Thước cặp không thể dùng để đo kích thước trong.", 
+    e: "Sai. Thước cặp có phần mỏ đo phía trên (mỏ đo trong) được thiết kế riêng để đo đường kính lỗ hoặc chiều rộng rãnh. Nó là dụng cụ đo đa năng có thể đo ngoài, đo trong và đo sâu.",
+    a: false 
+},
+{ 
+    cat: "4. 測定 (Đo lường)", 
+    q: "せんばんで　かこうした　がいけいを　はかるときは　スケールのほうが　ノギスより　せいかくです。", 
+    r: "Senban de kakō shita gaikei o hakaru toki wa sukēru no hō ga nogisu yori seikaku desu.", 
+    v: "Khi đo đường kính ngoài đã gia công trên máy tiện, thước lá chính xác hơn thước cặp.", 
+    e: "Sai. Thước cặp (Nogisu) có vạch chia nhỏ hơn (0.05mm hoặc 0.02mm) và mỏ kẹp chuyên dụng, nên nó chính xác hơn thước lá (Scale) vốn chỉ có vạch chia 0.5mm hoặc 1mm.",
+    a: false 
+},		
+        { 
+            cat: "4. 測定 (Đo lường)", 
+            q: "ノギスは　ないけいすんぽうを　はかることが　できます。", 
+            r: "Nogisu wa naikei sunpō o hakaru koto ga dekimasu.", 
+            v: "Thước cặp có thể đo kích thước đường kính trong.", 
+            e: "Thước cặp có mỏ trên để đo kích thước lỗ.",
+            a: true 
+        },
+        { 
+            cat: "4. 測定 (Đo lường)", 
+            q: "マイクロメータで　かくどを　はかることは　できません。", 
+            r: "Maikuromēta de kakudo o hakaru koto wa dekimasen.", 
+            v: "Không thể dùng panme để đo góc.", 
+            e: "Panme dùng để đo độ dày hoặc đường kính, không đo được góc.",
+            a: true 
+        },
+		{ 
+    cat: "4. 測定 (Đo lường)", 
+    q: "がいそくマイクロメータは　あなの　ちょっけいを　はかる　そくていきです。", 
+    r: "Gaisoku maikuromēta wa ana no chokkei o hakaru sokuteiki desu.", 
+    v: "Panme đo ngoài là dụng cụ dùng để đo đường kính của lỗ.", 
+    e: "Sai. Panme đo ngoài (Gaisoku) dùng để đo kích thước bên ngoài như đường kính trục hoặc độ dày. Để đo đường kính lỗ (kích thước trong), phải dùng Panme đo trong (Naisoku) hoặc các dụng cụ đo trong chuyên dụng.",
+    a: false 
+}, 
+{ 
+    cat: "4. 測定 (Đo lường)", 
+    q: "したの　ずの　マイクロメータの　よみとりちは　9.25mmです。", 
+    r: "Shita no zu no maikuromēta no yomitorichi wa 9.25mm desu.", 
+    v: "Giá trị đọc được trên Panme ở hình dưới là 9.25mm.", 
+    e: "Đúng. Thước chính hiển thị vạch 9mm và thước phụ (thimble) chỉ ở vạch số 25. Vì vạch 0.5mm ở hàng dưới chưa được tính, tổng giá trị đo được chính xác là 9.25mm.",
+    a: true,
+    img: "https://i.imgur.com/1rMAaUL.png"
+}, 
+{ 
+    cat: "4. 測定 (Đo lường)", 
+    q: "デプスゲージは　いっぱんに　ふかさを　はかる　そくていき　です。", 
+    r: "Depusu gēji wa ippan ni fukasa o hakaru sokuteiki desu.", 
+    v: "Thước đo độ sâu thông thường là dụng cụ dùng để đo độ sâu.", 
+    e: "Đúng. Như tên gọi của nó (Depth - độ sâu), đây là dụng cụ đo chuyên dụng để kiểm tra chiều sâu của lỗ hoặc các bậc trên sản phẩm gia công.",
+    a: true 
+}, 
+{ 
+    cat: "4. 測定 (Đo lường)", 
+    q: "デプスゲージは　ないけいすんぽうを　はかることが　できます。", 
+    r: "Depusu gēji wa naikei sunpō o hakaru koto wa dekimasu.", 
+    v: "Thước đo sâu có thể đo được kích thước trong.", 
+    e: "Sai. Thước đo sâu (Depth gauge) chỉ có chức năng đo độ sâu (từ mặt phẳng tham chiếu xuống đáy). Để đo kích thước trong (đường kính lỗ), cần sử dụng mỏ đo trong của thước cặp hoặc Panme đo trong.",
+    a: false 
+}, 
+{ 
+    cat: "4. 測定 (Đo lường)", 
+    q: "ずの　Aの　すんぽうは　デプスゲージで　はかれます。", 
+    r: "Zu no A no sunpō wa depusu gēji de hakaremasu.", 
+    v: "Kích thước A trong hình có thể đo được bằng thước đo sâu.", 
+    e: "Đúng. Kích thước A là khoảng cách giữa hai mặt bậc (độ sâu bậc). Thước đo sâu (Depth gauge) là dụng cụ chuyên dụng và chính xác nhất để đo loại kích thước này.",
+    a: true,
+    img: "https://i.imgur.com/JxURAEZ.png"
+}, 
+{ 
+    cat: "4. 測定 (Đo lường)", 
+    q: "ぶんどきは　ないけいすんぽうを　はかることが　できます。", 
+    r: "Bundoki wa naikei sunpō o hakaru koto wa dekimasu.", 
+    v: "Thước đo góc có thể đo được kích thước trong.", 
+    e: "Sai. Thước đo góc (Bundoki) chỉ dùng để đo góc độ (ví dụ: 30 độ, 45 độ). Để đo kích thước trong, ta cần sử dụng các dụng cụ đo độ dài như thước cặp hoặc panme đo trong.",
+    a: false 
+}, 
+{ 
+    cat: "4. 測定 (Đo lường)", 
+    q: "ぶんどきは　ながさを　はかるどうぐです。", 
+    r: "Bundoki wa nagasa o hakaru dōgu desu.", 
+    v: "Thước đo góc là dụng cụ dùng để đo độ dài.", 
+    e: "Sai. Thước đo góc (Bundoki) dùng để đo góc (đơn vị độ). Để đo độ dài, ta phải dùng thước lá (Scale) hoặc thước cặp (Nogisu).",
+    a: false 
+}, 	
+{ 
+    cat: "4. 測定 (Đo lường)", 
+    q: "スコヤは　ワークの　ちょっかくを　しらべるときに　つかいます。", 
+    r: "Sukoya wa wāku no chokkaku o shiraberu toki ni tsukaimasu.", 
+    v: "Thước vuông (Sukoya) được sử dụng khi kiểm tra độ vuông góc của phôi.", 
+    e: "Đúng. Thước vuông (ke vuông) là dụng cụ chuẩn để kiểm tra góc 90 độ giữa hai mặt phẳng hoặc dùng để vạch dấu các đường vuông góc.",
+    a: true 
+}, 
+
+//*****************************************************************************************************************************************
+        // 5. VẬT LIỆU
+        { 
+            cat: "5. 材料 (Vật liệu)", 
+            q: "たんそこうは　たんその　りょうが　おおいほど　かたくなります。", 
+            r: "Tansokō wa tanso no ryō ga ōi hodo kataku narimasu.", 
+            v: "Thép cacbon nói chung hàm lượng cacbon càng nhiều thì càng cứng.", 
+            e: "Đúng, hàm lượng Cacbon quyết định độ cứng của thép.",
+            a: true 
+        },
+		{ 
+    cat: "5. 材料 (Vật liệu)", 
+    q: "たんそこうは　いっぱんに　たんその　りょうが　おおいほど　やわらかくなります。", 
+    r: "Tansokō wa ippan ni tanso no ryō ga oi hodo yawarakaku narimasu.", 
+    v: "Thép cacbon thông thường hàm lượng cacbon càng nhiều thì càng mềm đi.", 
+    e: "Sai. Ngược lại, hàm lượng cacbon càng nhiều thì thép càng trở nên cứng và giòn hơn. Thép ít cacbon mới là thép mềm.",
+    a: false 
+}, 
+{ 
+    cat: "5. 材料 (Vật liệu)", 
+    q: "たんそこうは　いっぱんに　たんその　りょうが　おおいほど　かたくなります。", 
+    r: "Tansokō wa ippan ni tanso no ryō ga oi hodo kataku narimasu.", 
+    v: "Thép cacbon thông thường hàm lượng cacbon càng nhiều thì càng cứng.", 
+    e: "Đúng. Hàm lượng cacbon tỉ lệ thuận với độ cứng của thép. Càng nhiều cacbon thép càng cứng và giòn; càng ít cacbon thép càng mềm và dẻo.",
+    a: true 
+}, 
+{ 
+    cat: "5. 材料 (Vật liệu)", 
+    q: "アルミニウムは　たんそこう（S45C）より　おくりを　おそくして　けずります。", 
+    r: "Aruminiumu wa tansokō (S45C) yori okuri o osoku shite kezurimasu.", 
+    v: "Khi gia công nhôm, người ta để lượng ăn dao chậm hơn so với thép cacbon (S45C).", 
+    e: "Sai. Vì nhôm mềm và dễ cắt hơn thép S45C, nên thông thường tốc độ cắt và lượng ăn dao khi gia công nhôm sẽ nhanh hơn để tăng hiệu suất.",
+    a: false 
+}, 
+{ 
+    cat: "5. 材料 (Vật liệu)", 
+    q: "ちゅうてつの　くろかわを　けずるときは　きりこみふかさを　おおくして　けずります。", 
+    r: "Chūtetsu no kurokawa o kezuru toki wa kirikomi fukasa o okushite kezurimasu.", 
+    v: "Khi cắt lớp vỏ đen của gang, người ta để chiều sâu cắt lớn để gia công.", 
+    e: "Đúng. Lớp vỏ đen của gang rất cứng và có hại cho mũi dao. Việc cắt sâu giúp mũi dao ăn qua lớp vỏ cứng này để chạm vào phần thịt mềm bên trong ngay lập tức, tránh việc dao bị mòn nhanh do cọ xát với bề mặt vỏ.",
+    a: true 
+},
+{ 
+    cat: "5. 材料 (Vật liệu)", 
+    q: "ちゅうてつの　くろかわは　かたいので　けずるときは　きりこみ　ふかさを　すくなくして　けずります。", 
+    r: "Chūtetsu no kurokawa wa katai node kezuru toki wa kirikomi fukasa o sukunaku shite kezurimasu.", 
+    v: "Vì lớp vỏ đen của gang rất cứng nên khi cắt người ta để chiều sâu cắt ít.", 
+    e: "Sai. Vì lớp vỏ đen rất cứng, nếu cắt nông sẽ làm hỏng mũi dao. Cần phải cắt sâu (chiều sâu cắt lớn) để mũi dao ăn qua lớp vỏ cứng và đi vào phần thịt mềm bên trong ngay từ đầu.",
+    a: false 
+}, 
+{ 
+    cat: "5. 材料 (Vật liệu)", 
+    q: "FC250は　たんそこうの　しゅるいを　あらわしています。", 
+    r: "FC250 wa tansokō no shurui o arawashite imasu.", 
+    v: "FC250 biểu thị cho một loại thép cacbon.", 
+    e: "Sai. FC250 là ký hiệu của Gang xám. Thép cacbon thường được ký hiệu bắt đầu bằng chữ S (như S45C).",
+    a: false 
+}, 
+{ 
+    cat: "5. 材料 (Vật liệu)", 
+    q: "S45Cは　ちゅうてつの　しゅるいを　あらわしています。", 
+    r: "S45C wa chūtetsu no shurui o arawashite imasu.", 
+    v: "S45C biểu thị cho một loại gang.", 
+    e: "Sai. S45C là ký hiệu của Thép cacbon. Chữ 'C' đại diện cho Carbon và '45' là hàm lượng cacbon 0,45%. Gang phải được ký hiệu là FC hoặc FCD.",
+    a: false 
+}, 
+{ 
+    cat: "5. 材料 (Vật liệu)", 
+    q: "ちょっけいが　おなじ　たんそこう(S45C)と　アルミニウムを　けずる　ときは　かいてんすうを　おなじに　します。", 
+    r: "Chokkei ga onaji tansokō (S45C) to aruminiumu o kezuru toki wa kaitensū o onaji ni shimasu.", 
+    v: "Khi gia công thép cacbon (S45C) và nhôm có cùng đường kính, người ta để tốc độ quay giống nhau.", 
+    e: "Sai. Nhôm mềm và dễ cắt hơn thép rất nhiều nên tốc độ cắt (và tốc độ quay) của nhôm phải nhanh hơn. Nếu để tốc độ quay chậm như thép thì năng suất sẽ thấp, còn nếu để nhanh như nhôm khi cắt thép thì sẽ làm hỏng dao ngay lập tức.",
+    a: false 
+}, 
+{ 
+    cat: "5. 材料 (Vật liệu)", 
+    q: "おおきいワークになるほど　せんばんでは　かいてんすうを　おそくします。", 
+    r: "Ōkii wāku ni naru hodo senban de wa kaitensū o osoku shimasu.", 
+    v: "Phôi càng lớn thì trên máy tiện người ta càng để tốc độ quay chậm đi.", 
+    e: "Đúng. Để đảm bảo tốc độ cắt (V) không quá cao gây hỏng dao, khi đường kính phôi lớn, ta phải giảm số vòng quay (N). Ngược lại, phôi nhỏ thì có thể quay nhanh hơn.",
+    a: true 
+}, 
+        { 
+            cat: "5. 材料 (Vật liệu)", 
+            q: "ちゅうてつは　いものを　つくるのに　てきしています。", 
+            r: "Chūtetsu wa imono o tsukuru no ni tekishite imasu.", 
+            v: "Gang thích hợp để làm vật đúc.", 
+            e: "Gang có tính đúc rất tốt.",
+            a: true 
+        },
+        { 
+            cat: "5. 材料 (Vật liệu)", 
+            q: "S45Cは　たんそこう　をあらわしています。", 
+            r: "S45C wa tansokō o arawashite imasu.", 
+            v: "S45C biểu thị loại thép cacbon.", 
+            e: "S45C là thép cacbon có 0.45% Cacbon.",
+            a: true 
+        },
+		
+//************************************************************************************************************************************
+        // 6. GIA CÔNG & NHIỆT LUYỆN
+        { 
+            cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+            q: "やきいれ　のさいに　できる　われを　やきわれといいます。", 
+            r: "Yakiire no sai ni dekiru ware o yakiware to iimasu.", 
+            v: "Vết nứt phát sinh khi tôi thép gọi là nứt do tôi.", 
+            e: "Do ứng suất nhiệt sinh ra khi làm lạnh nhanh đột ngột.",
+            a: true 
+        },
+		{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "やきいれ　のときに　できる　われを　やきわれといいます。", 
+    r: "Yakiire no toki ni dekiru ware o yakiware to iimasu.", 
+    v: "Vết nứt phát sinh khi tôi thép được gọi là nứt do tôi (yakiware).", 
+    e: "Đúng. Trong quá trình làm nguội nhanh, ứng suất nhiệt lớn có thể gây ra các vết nứt trên phôi, hiện tượng này gọi là (Yakiware).",
+    a: true 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "やきいれの　れいきゃくは　くうれいで　おこないます。", 
+    r: "Yakiire no reikyaku wa kūrei de okonaimasu.", 
+    v: "Việc làm nguội khi tôi thép được thực hiện bằng không khí.", 
+    e: "Sai. Để tôi thép đạt độ cứng, cần phải làm nguội nhanh bằng nước hoặc dầu. Làm nguội bằng không khí (Kūrei) quá chậm, thường chỉ dùng để ủ hoặc làm mềm thép.",
+    a: false 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "やきいれの　れいきゃくには　ゆちゅう　または　すいちゅう　れいきゃくが　あります。", 
+    r: "Yakiire no reikyaku ni wa yuchū matawa suichū reikyaku ga arimasu.", 
+    v: "Làm nguội khi tôi thép có các phương pháp như làm nguội trong dầu hoặc làm nguội trong nước.", 
+    e: "Đúng. Đây là hai môi trường làm nguội nhanh phổ biến nhất để giúp thép đạt được độ cứng mong muốn sau khi nung nóng.",
+    a: true 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "やきいれとは　たんそこうなどを　ねっしてから　きゅうに　ひやし　かたくすることです。", 
+    r: "Yakiire to wa tansokō nado o ne-shite kara kyū ni hiyashi kataku suru koto desu.", 
+    v: "Tôi thép là việc nung nóng thép cacbon sau đó làm nguội nhanh để làm cứng thép.", 
+    e: "Đúng. Đây là quy trình nhiệt luyện nhằm mục đích tăng độ cứng cho thép bằng cách thay đổi cấu trúc tinh thể thông qua việc nung nóng và làm nguội đột ngột.",
+    a: true 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "たんそこうの　かたさを　かたくするために　やきなましをします。", 
+    r: "Tansokō no katasa o kataku suru tame ni yakinamashi o shimasu.", 
+    v: "Để làm tăng độ cứng của thép cacbon, người ta thực hiện quá trình ủ thép.", 
+    e: "Sai. Quá trình làm cứng thép là 'Yakiire' (Tôi thép). Còn 'Yakinamashi' (Ủ thép) được dùng để làm mềm thép nhằm giúp việc gia công trở nên dễ dàng hơn.",
+    a: false 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "これは　かいてんすうを　あらわす　しきです。", 
+    r: "Kore wa kaitensū o arawasu shiki desu.", 
+    v: "Đây là công thức biểu thị số vòng quay (tốc độ quay).", 
+    e: "Đúng. Đây là công thức tiêu chuẩn dùng để tính số vòng quay của trục chính (N) khi biết tốc độ cắt (V) và đường kính phôi hoặc dao (D).",
+    a: true ,
+	img: "https://i.imgur.com/WGmds8x.png"
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "せんばんでは　せっさくそくどが　はやくなるほど　しゅじくの　かいてんすうも　はやくなります。", 
+    r: "Senban de wa sessaku sokudo ga hayaku naru hodo shujiku no kaitensū mo hayaku narimasu.", 
+    v: "Trên máy tiện, tốc độ cắt càng nhanh thì số vòng quay của trục chính cũng càng nhanh.", 
+    e: "Đúng. Theo công thức tính toán, tốc độ quay (N) tỉ lệ thuận với tốc độ cắt (V). Khi đường kính phôi không đổi, muốn tăng tốc độ cắt thì phải tăng số vòng quay.",
+    a: true 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "かいてんすうは　ワークの　ざいしつに　よっても　かわります。", 
+    r: "Kaitensū wa wāku no zaishitsu ni yotte mo kawarimasu.", 
+    v: "Tốc độ quay cũng thay đổi tùy theo chất liệu của phôi gia công.", 
+    e: "Đúng. Mỗi loại vật liệu (nhôm, thép, gang) có tốc độ cắt (V) cho phép khác nhau. Vì N tỉ lệ thuận với V, nên chất liệu thay đổi thì tốc độ quay N cũng phải thay đổi theo.",
+    a: true 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "せんばんでは　せっさくそくどが　はやくなるほど　しゅじくの　かいてんすうは　おそくなります。", 
+    r: "Senban de wa sessaku sokudo ga hayaku naru hodo shujiku no kaitensū wa osoku narimasu.", 
+    v: "Trên máy tiện, tốc độ cắt càng nhanh thì tốc độ quay của trục chính càng chậm đi.", 
+    e: "Sai. Theo công thức N = (1000 x V) / (π x D), N và V tỉ lệ thuận với nhau. Do đó, tốc độ cắt (V) càng nhanh thì tốc độ quay (N) cũng phải càng nhanh.",
+    a: false 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "せんばんでは　ざいりょうに　かんけいなく　かいてんすうは　いっていで　よいです。", 
+    r: "Senban de wa zairyō ni kankeinaku kaitensū wa ittei de yoi desu.", 
+    v: "Trên máy tiện, không cần quan tâm đến vật liệu, tốc độ quay cứ để cố định là được.", 
+    e: "Sai. Tốc độ quay (N) phụ thuộc trực tiếp vào tốc độ cắt (V) cho phép của từng loại vật liệu. Vật liệu cứng thì quay chậm, vật liệu mềm thì quay nhanh.",
+    a: false 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "かたい　ざいりょうを　けずるときは　かいてんすうを　はやくします。", 
+    r: "Katai zairyō o kezuru toki wa kaitensū o hayaku shimasu.", 
+    v: "Khi cắt gọt vật liệu cứng, người ta tăng tốc độ quay nhanh lên.", 
+    e: "Sai. Vật liệu càng cứng thì lực cắt và nhiệt phát sinh càng lớn. Để bảo vệ dao không bị cháy hoặc mòn nhanh, ta phải giảm tốc độ quay (quay chậm lại).",
+    a: false 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "せんばんでは　せっさくそくどと　しゅじくの　かいてんすうは　かんけいあります。", 
+    r: "Senban de wa sessaku sokudo to shujiku no kaitensū wa kankei arimasu.", 
+    v: "Trên máy tiện, tốc độ cắt và tốc độ quay của trục chính có mối quan hệ với nhau.", 
+    e: "Đúng. Chúng liên hệ với nhau qua công thức N = (1000 x V) / (π x D). Khi biết tốc độ cắt (V) và đường kính (D), ta sẽ tính được tốc độ quay (N).",
+    a: true 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "おおきいワークになるほど　せんばんでは　かいてんすうを　おそくします。", 
+    r: "Ōkii wāku ni naru hodo senban de wa kaitensū o osoku shimasu.", 
+    v: "Phôi càng lớn thì trên máy tiện người ta càng để tốc độ quay chậm đi.", 
+    e: "Đúng. Với phôi lớn (D lớn), nếu quay nhanh thì tốc độ cắt tại bề mặt sẽ cực kỳ cao làm hỏng dao. Vì vậy cần giảm số vòng quay (N) để duy trì tốc độ cắt hợp lý.",
+    a: true 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "せんばんでは　せっさくそくどと　しゅじくの　かいてんすうは　かんけいしません。", 
+    r: "Senban de wa sessaku sokudo to shujiku no kaitensū wa kankeishimasen.", 
+    v: "Trên máy tiện, tốc độ cắt và tốc độ quay của trục chính không liên quan đến nhau.", 
+    e: "Sai. Tốc độ quay (N) và tốc độ cắt (V) có mối quan hệ mật thiết qua công thức N = (1000 x V) / (π x D). Khi một đại lượng thay đổi, đại lượng kia cũng sẽ thay đổi theo.",
+    a: false 
+}, 
+{ 
+    cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+    q: "ちょっけいが　おなじ　たんそこう(S45C)と　アルミニウムを　けずる　ときは　かいてんすうを　おなじに　します。", 
+    r: "Chokkei ga onaji tansokō (S45C) to aruminiumu o kezuru toki wa kaitensū o onaji ni shimasu.", 
+    v: "Khi gia công thép cacbon (S45C) và nhôm có cùng đường kính, người ta để tốc độ quay giống nhau.", 
+    e: "Sai. Vì nhôm mềm và chịu được tốc độ cắt (V) cao hơn thép rất nhiều, nên dù cùng đường kính, tốc độ quay (N) khi gia công nhôm phải nhanh hơn nhiều so với thép S45C.",
+    a: false 
+}, 
+        { 
+            cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+            q: "やきいれとは　ねっしてから　きゅうに　ひやし　かたくすることです。", 
+            r: "Yakiire to wa... hiyashi kataku suru koto desu.", 
+            v: "Tôi thép là việc nung nóng sau đó làm lạnh nhanh để làm cứng.", 
+            e: "Đây là định nghĩa cơ bản của nhiệt luyện tôi.",
+            a: true 
+        },
+        { 
+            cat: "6. 加工・熱処理 (Gia công & Nhiệt luyện)", 
+            q: "たんそこうの　かたさを　かたくするために　やきなましをします。", 
+            r: "Katasa o kataku suru tame ni yakinamashi o shimasu.", 
+            v: "Để làm cứng thép cacbon, người ta tiến hành ủ (yakinamashi).", 
+            e: "Sai. Ủ (yakinamashi) là để làm mềm thép, không phải làm cứng.",
+            a: false 
+        },
+		
+//*******************************************************************************************************************************************
+        // 7. BẢN VẼ
+        { 
+    cat: "7. 製図 (Bản vẽ)", 
+    q: "これは　だいさんかくほうの　きごうです。", 
+    r: "Kore wa daisankakuhō no kigō desu.", 
+    v: "Đây là ký hiệu của phương pháp chiếu góc thứ ba.", 
+    e: "Sai. Trong vẽ kỹ thuật, ký hiệu hình nón cụt với vòng tròn nằm bên phải như hình minh họa là biểu tượng tiêu chuẩn của phương pháp chiếu góc thứ nhất.",
+    a: false , 
+	img: "https://i.imgur.com/54YrcXL.png"
+}, 
+		{ 
+            cat: "7. 製図 (Bản vẽ)", 
+            q: "せいずでは　Rの　きごうは　はんけいを　あらわします。", 
+            r: "Seizu de wa R no kigō wa hankei o arawashimasu.", 
+            v: "Trong bản vẽ, ký hiệu R biểu thị bán kính.", 
+            e: "R là Radius (Bán kính).",
+            a: true 
+        },
+		{ 
+    cat: "7. 製図 (Bản vẽ)", 
+    q: "せいずでは　ずめんの　なかに　ながさの　たんい　”ｍｍ”を　つけます。", 
+    r: "Seizu de wa zumen no naka ni nagasa no tan-i 'mm' o tsukemasu.", 
+    v: "Trong vẽ kỹ thuật, người ta ghi đơn vị độ dài 'mm' vào trong bản vẽ.", 
+    e: "Sai. Đơn vị milimét (mm) là đơn vị mặc định trong bản vẽ cơ khí nên không cần ghi chữ 'mm' sau các con số kích thước.",
+    a: false 
+}, 
+{ 
+    cat: "7. 製図 (Bản vẽ)", 
+    q: "せいずでは　ずめんの　なかに　ながさの　たんい　”ｍｍ”を　つけます。", 
+    r: "Seizu de wa zumen no naka ni nagasa no tan-i 'mm' o tsukemasu.", 
+    v: "Trong vẽ kỹ thuật, người ta ghi đơn vị độ dài 'mm' vào trong bản vẽ.", 
+    e: "Sai. Đơn vị milimét (mm) là đơn vị mặc định trong bản vẽ cơ khí nên không cần ghi chữ 'mm' sau các con số kích thước.",
+    a: false 
+}, 
+{ 
+    cat: "7. 製図 (Bản vẽ)", 
+    q: "これは　だいいちかくほうの　きごうです。", 
+    r: "Kore wa daisankakuhō no kigō desu.", 
+    v: "Đây là ký hiệu của phương pháp chiếu góc thứ nhất.", 
+    e: "Đúng. Trong tiêu chuẩn JIS, hình nón cụt có hình chiếu vòng tròn nằm bên phải là ký hiệu của phương pháp chiếu góc thứ nhất.",
+    a: true, 
+	img: "https://i.imgur.com/54YrcXL.png"
+}, 
+{ 
+    cat: "7. 製図 (Bản vẽ)", 
+    q: "せいずでは　したの　ずの　Aは　すんぽう　すうちを　あらわしています。", 
+    r: "Seizu de wa shita no zu no A wa sunpō sūchi o arawashite imasu.", 
+    v: "Trong vẽ kỹ thuật, chữ A trong hình biểu thị trị số kích thước.", 
+    e: "Đúng. Chữ A chỉ vào con số cụ thể trên đường kích thước, thể hiện độ dài hoặc kích thước thực tế của vật thể gia công.",
+    a: true, 
+	img: "https://i.imgur.com/hgEz7UG.png"	
+},
+{ 
+    cat: "7. 製図 (Bản vẽ)", 
+    q: "これは　ひょうめんの　あらさを　あらわすきごうです。", 
+    r: "Kore wa hyōmen no arasa o arawasu kigō desu.", 
+    v: "Đây là ký hiệu biểu thị độ nhám bề mặt.", 
+    e: "Đúng. Trong bản vẽ kỹ thuật, ký hiệu hình chữ V này được sử dụng để chỉ định yêu cầu về độ nhám hoặc độ bóng bề mặt cho chi tiết gia công.",
+    a: true,
+    img: "https://i.imgur.com/mUoEQop.png"		
+}, 
+{ 
+    cat: "7. 製図 (Bản vẽ)", 
+    q: "せいずでは　したの　ずは　M20の　めねじを　あらわしています。", 
+    r: "Seizu de wa shita no zu wa M20 no meneji o arawashite imasu.", 
+    v: "Trong vẽ kỹ thuật, hình bên dưới biểu thị lỗ ren (ren trong) M20.", 
+    e: "Đúng. Ký hiệu M20 chỉ loại ren hệ mét có đường kính 20mm, và vì nó nằm trong lỗ nên được gọi là 'Meneji' (ren trong).",
+    a: true, 
+	img: "https://i.imgur.com/Tuio3dN.png"
+}, 
+{ 
+    cat: "7. 製図 (Bản vẽ)", 
+    q: "せいずでは　したの　ずは　M20の　おねじを　あらわしています。", 
+    r: "Seizu de wa shita no zu wa M20 no oneji o arawashite imasu.", 
+    v: "Trong vẽ kỹ thuật, hình bên dưới biểu thị ren ngoài (Oneji) M20.", 
+    e: "Sai. Hình vẽ này biểu thị 'Meneji' (ren trong) vì ren nằm bên trong lỗ. 'Oneji' là ren ngoài, giống như hình dạng của một con vít.",
+    a: false , 
+	img: "https://i.imgur.com/Tuio3dN.png"
+}, 
+{ 
+    cat: "7. 製図 (Bản vẽ)", 
+    q: "せいずでは　したの　ずの　Aは　ゆうこうねじふかさを　あらわしています。", 
+    r: "Seizu de wa shita no zu no A wa yūkō neji fukasa o arawashite imasu.", 
+    v: "Trong vẽ kỹ thuật, chữ A trong hình bên dưới biểu thị độ sâu ren hữu hiệu.", 
+    e: "Sai. Trong ký hiệu ren trong (lỗ ren), chữ A chỉ độ sâu lỗ.",
+    a: false , 
+	img: "https://i.imgur.com/F7flZUz.png"
+}, 
+{ 
+    cat: "7. 製図 (Bản vẽ)", 
+    q: "せいずでは　したの　ずの　Aは　ゆうこうねじふかさを　あらわして　います。", 
+    r: "Seizu de wa shita no zu no A wa yūkō neji fukasa o arawashite imasu.", 
+    v: "Trong vẽ kỹ thuật, chữ A trong hình dưới biểu thị độ sâu ren hữu hiệu.", 
+    e: "Đúng. Trong ký hiệu lỗ ren, chữ A đo chiều dài từ mặt phôi đến hết phần ren thực tế, được gọi là độ sâu ren hữu hiệu.",
+    a: true ,
+	img: "https://i.imgur.com/JxPoIIH.png"
+}, 
+{ 
+    cat: "7. 製図 (Bản vẽ)", 
+    q: "せいずで　したの　ずは　めねじを　あらわしています。", 
+    r: "Seizu de shita no zu wa meneji o arawashite imasu.", 
+    v: "Trong vẽ kỹ thuật, hình bên dưới biểu thị ren trong (Meneji).", 
+    e: "Đúng. Trong hình chiếu bằng của lỗ ren, vòng tròn mảnh nằm bên ngoài vòng tròn đậm chính là ký hiệu đặc trưng của ren trong (Meneji).",
+    a: true , 
+	img: "https://i.imgur.com/M0x6q41.png"
+}, 
+        { 
+            cat: "7. 製図 (Bản vẽ)", 
+            q: "せいずでは　Φのきごうは　ながさを　あらわします。", 
+            r: "Seizu de wa Phi no kigō wa nagasa o arawashimasu.", 
+            v: "Trong bản vẽ, ký hiệu Φ biểu thị chiều dài.", 
+            e: "Sai. Ký hiệu Φ biểu thị đường kính (Diameter).",
+            a: false 
+        },
+        { 
+            cat: "7. 製図 (Bản vẽ)", 
+            q: "せいずでは　ながさの　たんいは　”ｍｍ”　です。", 
+            r: "Seizu de wa nagasa no tan-i wa 'mm' desu.", 
+            v: "Trong bản vẽ kỹ thuật cơ khí, đơn vị chiều dài là mm.", 
+            e: "Đúng, mm là đơn vị tiêu chuẩn trong cơ khí.",
+            a: true 
+        },
+		{ 
+            cat: "7. 製図 (Bản vẽ)",
+            q: "ずめんでは　したのせんは　みえないぶぶんを　あらわします。", 
+            r: "Zumen de wa shita no sen wa mienai bubun o arawashimasu.", 
+            v: "Trong bản vẽ, những đường nét ở phía dưới thể hiện những bộ phận không nhìn thấy được.", 
+            e: "Đúng. Trong quy tắc vẽ kỹ thuật, các nét đứt hoặc nét khuất dùng để biểu thị các phần bị che khuất bởi các bề mặt khác.", 
+            a: true,
+			img: "https://i.imgur.com/orrgRkk.png"
+        },
+
+//***************************************************************************************************************************************		
+		// 8. AN TOÀN LAO ĐỘNG /////////////////////////////////////////////////////////////////////////
+        { 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "せんばん　さぎょうを　するときは　あんぜんぐつを　はきます。", 
+            r: "Senban sagyō o suru toki wa anzengutsu o hakimasu.", 
+            v: "Khi làm việc với máy tiện, phải đi giày an toàn.", 
+            e: "Giày an toàn bảo vệ chân khỏi phôi nóng và vật nặng rơi rớt.",
+            a: true 
+        },
+        { 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "そくていを　するときは　かいてんを　とめます。", 
+            r: "Sokutei o suru toki wa kaiten o tomemasu.", 
+            v: "Khi tiến hành đo đạc, phải dừng chuyển động quay.", 
+            e: "Đo khi máy đang quay cực kỳ nguy hiểm và làm hỏng dụng cụ đo.",
+            a: true 
+        },
+        { 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "せんばんでは　かいてんちゅうの　ワークに　てを　ふれては　いけません。", 
+            r: "Senban de wa kaitenchū no wāku ni te o furete wa ikemasen.", 
+            v: "Trên máy tiện, không được chạm tay vào phôi đang quay.", 
+            e: "Tay có thể bị cuốn vào phôi hoặc bị phôi nóng cắt vào tay.",
+            a: true 
+        },
+        { 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "せんばんを　そうじするときは　しゅじくを　とめます。", 
+            r: "Senban o sōji suru toki wa shujiku o tomemasu.", 
+            v: "Khi vệ sinh máy tiện, phải dừng trục chính.", 
+            e: "Tuyệt đối không vệ sinh khi máy đang chạy vì dễ bị cuốn vào các bộ phận chuyển động.",
+            a: true 
+        },
+        { 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "せんばんさぎょうを　するときは　てぶくろを　します。", 
+            r: "Senban sagyō o suru toki wa tebukuro o shimasu.", 
+            v: "Khi làm việc với máy tiện, phải đeo găng tay.", 
+            e: "Tuyệt đối không đeo găng tay khi vận hành máy quay vì găng tay có thể bị cuốn vào trục gây tai nạn.",
+            a: false 
+        },
+        { 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "ボールばんさぎょうを　するときは　てぶくろを　します。", 
+            r: "Bōruban sagyō o suru toki wa tebukuro o shimasu.", 
+            v: "Khi làm việc với máy khoan bàn, phải đeo găng tay.", 
+            e: "Tương tự máy tiện, máy khoan bàn có trục quay nên không được dùng găng tay.",
+            a: false 
+        },
+        { 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "ようせつさぎょうちゅうに　あついときは　うでまくりを　します。", 
+            r: "Yōsetsu sagyōchū ni atsui toki wa udemakuri o shimasu.", 
+            v: "Khi hàn nếu thấy nóng thì xắn tay áo lên.", 
+            e: "Không được xắn tay áo khi hàn vì tia lửa điện và tia cực tím có thể gây bỏng da.",
+            a: false 
+        },
+        { 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "かこうちゅうは　あんぜんカバーを　はずしては　いけません。", 
+            r: "Kakōchū wa anzen kabā o hazushite wa ikemasen.", 
+            v: "Trong khi gia công, không được tháo nắp che an toàn.", 
+            e: "Nắp che bảo vệ người vận hành khỏi phôi bắn và các bộ phận quay.",
+            a: true 
+        },
+        { 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "グラインダを　つかうまえは　しうんてんを　して　いじょうが　ないことを　かくにんします。", 
+            r: "Gurainda o tsukau mae wa shiunten o shite ijō ga nai koto o kakuninshimasu.", 
+            v: "Trước khi dùng máy mài, phải chạy thử để xác nhận không có bất thường.", 
+            e: "Kiểm tra đá mài có bị nứt hay mất cân bằng không để tránh vỡ đá khi đang làm việc.",
+            a: true 
+        },
+       { 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "さぎょうを　するときは　うごきやすくれば　どのような　ふくそうを　していても　よいです。", 
+            r: "Sagyō o suru toki wa ugokiyasukereba dono yōna fukusō o shite ite mo yoi desu.", 
+            v: "Khi làm việc, miễn là dễ cử động thì mặc trang phục như thế nào cũng được.", 
+            e: "Trang phục bảo hộ phải gọn gàng, đúng quy định; quần áo lòa xòa có thể bị cuốn vào máy móc gây tai nạn.",
+            a: false
+        },
+		{ 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "まきあげようの　ロープは　つぎめの　あるものも　しよう　できます。", 
+            r: "Makiage-yō no rōpu wa tsugime no aru mono mo shiyō dekimasu.", 
+            v: "Có thể sử dụng loại dây cáp có mối nối để cuộn nâng (tời).", 
+            e: "Không được sử dụng dây cáp có mối nối hoặc bị hư hỏng để nâng hạ vì rất dễ đứt, gây tai nạn rơi hàng.",
+            a: false
+        },
+		{ 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "この　ひょうしきが　あるところでは　ほごぼうを　かぶらなくても　よいです。", 
+            r: "Kono hyōshiki ga aru tokoro de wa hogobō o kaburanakute mo yoi desu.", 
+            v: "Ở những nơi có biển báo này thì không cần đội mũ bảo hộ cũng được.", 
+            e: "Nơi có biển báo chỉ dẫn trang bị bảo hộ thì bắt buộc phải đội mũ bảo hộ để đảm bảo an toàn, tránh vật rơi hoặc va đập.",
+            a: false,
+	        img: "https://i.imgur.com/vLLzpPr.png"
+        },
+		{ 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "この　ひょうしきが　あるところでは　ほごぼうを　かぶります。", 
+            r: "Kono hyōshiki ga aru tokoro de wa hogobō o kaburimasu.", 
+            v: "Ở những nơi có biển báo này thì phải đội mũ bảo hộ.", 
+            e: "Biển báo chỉ dẫn yêu cầu người lao động phải trang bị đầy đủ đồ bảo hộ để phòng tránh tai nạn trong khu vực làm việc.",
+            a: true,
+	        img: "https://i.imgur.com/vLLzpPr.png"
+        },
+		{
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "この　ひょうしきが　あるところでは　かんでんの　きけんは　ありません。", 
+            r: "Kono hyōshiki ga aru tokoro de wa kanden no kiken wa arimasen.", 
+            v: "Ở những nơi có biển báo này thì không có nguy hiểm bị điện giật.", 
+            e: "Biển báo này cảnh báo khu vực có điện áp cao, nguy cơ bị điện giật rất lớn, tuyệt đối không được chủ quan.",
+            a: false,
+			img: "https://i.imgur.com/dt0KCCB.png"
+        },
+		{
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "この　ひょうしきが　あるところでは　かんでんの　きけんが　あります。", 
+            r: "Kono hyōshiki ga aru tokoro de wa kanden no kiken ga arimasu.", 
+            v: "Ở những nơi có biển báo này thì có nguy hiểm bị điện giật.", 
+            e: "Đây là biển báo cảnh báo nguy cơ điện giật. Người lao động phải hết sức cẩn thận và không chạm vào các thiết bị điện.",
+            a: true,
+			img: "https://i.imgur.com/dt0KCCB.png"
+        },
+		{
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "この　ひょうしきが　あるところでは　たばこを　すっては　いけません。", 
+            r: "Kono hyōshiki ga aru tokoro de wa tabako o sutte wa ikemasen.", 
+            v: "Ở những nơi có biển báo này thì không được hút thuốc.", 
+            e: "Đây là biển báo cấm hút thuốc nhằm phòng chống cháy nổ và bảo vệ sức khỏe trong khu vực làm việc.",
+            a: true,
+			img: "https://i.imgur.com/RqxTd2q.png"
+        },
+		{
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "この　ひょうしきが　あるところでは　たばこを　すっても　よいです。", 
+            r: "Kono hyōshiki ga aru tokoro de wa tabako o sutte mo yoi desu.", 
+            v: "Ở những nơi có biển báo này thì hút thuốc cũng được.", 
+            e: "Đây là biển báo cấm hút thuốc. Tại khu vực này, tuyệt đối không được sử dụng thuốc lá để đảm bảo an toàn cháy nổ.",
+            a: false,
+			img: "https://i.imgur.com/RqxTd2q.png"
+        },
+		{
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "したの　ひょうしきが　あるところには　はいいっても　よいです。", 
+            r: "Shita no hyōshiki ga aru tokoro ni wa haitte mo yoi desu.", 
+            v: "Ở những nơi có biển báo bên dưới thì đi vào cũng được.", 
+            e: "Đây là biển báo 'Cấm vào'. Để đảm bảo an toàn, những người không có phận sự tuyệt đối không được tự ý đi vào khu vực này.",
+            a: false,
+			img: "https://i.imgur.com/ySHwEuV.png"
+        },
+		{ 
+            cat: "8. 安全作業 (An toàn lao động)", 
+            q: "フォークリフトを　うんてんする　ときは　パレットを　できるだけ　ひくくします。", 
+            r: "Fōkurifuto o unten suru toki wa paretto o dekiru dake hikuku shimasu.", 
+            v: "Khi lái xe nâng, phải hạ pallet xuống càng thấp càng tốt.", 
+            e: "Đúng. Để đảm bảo tầm nhìn và giữ trọng tâm xe ổn định, tránh bị lật khi di chuyển, pallet nên được để ở độ cao cách mặt đất khoảng 10-20cm.", 
+            a: true
+　　　　　},
+    ];
+
+//***********************************************************************************************************************************
+
+    let currentQuiz = [];
+    let answers = {};
+    let isSubmitted = false;
+    let timerInterval = null;
+    let timeLeft = 900;
+    let sidebarOpen = false;
+
+    function toggleSidebar() {
+        const sidebar = document.getElementById('answer-sidebar');
+        const icon = document.getElementById('toggle-icon');
+        sidebarOpen = !sidebarOpen;
+        if(sidebarOpen) {
+            sidebar.classList.remove('panel-hidden');
+            icon.style.transform = 'rotate(180deg)';
+        } else {
+            sidebar.classList.add('panel-hidden');
+            icon.style.transform = 'rotate(0deg)';
+        }
+    }
+
+    function switchTab(tab) {
+        document.getElementById('view-quiz').classList.toggle('hidden', tab !== 'quiz');
+        document.getElementById('view-list').classList.toggle('hidden', tab !== 'list');
+        document.getElementById('tab-quiz').classList.toggle('active', tab === 'quiz');
+        document.getElementById('tab-list').classList.toggle('active', tab === 'list');
+        if(tab === 'list') renderList();
+    }
+
+    function startTimer() {
+        if(timerInterval) clearInterval(timerInterval);
+        timeLeft = 900;
+        updateTimerDisplay();
+        timerInterval = setInterval(() => {
+            if(isSubmitted) { clearInterval(timerInterval); return; }
+            timeLeft--;
+            updateTimerDisplay();
+            if(timeLeft <= 0) { clearInterval(timerInterval); submitQuiz(true); }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const mins = Math.floor(timeLeft / 60);
+        const secs = timeLeft % 60;
+        const display = document.getElementById('countdown-timer');
+        display.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        if(timeLeft < 300) display.classList.add('timer-warning');
+        else display.classList.remove('timer-warning');
+    }
+
+    function initQuiz() {
+    // 1. Khai báo các biến trạng thái cơ bản
+    answers = {};
+    isSubmitted = false;
+
+    // --- ĐOẠN MÃ QUAN TRỌNG: CHIA TỶ LỆ ĐỂ ĐẠT ĐÚNG 20 CÂU ---
+    
+    // Bước 1: Phân nhóm câu hỏi từ dữ liệu gốc (rawData) theo Category
+    const groups = {};
+    rawData.forEach(q => {
+        if (!groups[q.cat]) groups[q.cat] = [];
+        groups[q.cat].push(q);
+    });
+
+    const categories = Object.keys(groups);
+    const totalTarget = 20; // Mục tiêu tổng số câu hỏi
+    
+    // Tính toán số câu mỗi hạng mục (ví dụ 20 câu / 4 hạng mục = 5 câu mỗi nhóm)
+    const questionsPerCategory = Math.floor(totalTarget / categories.length);
+    let selectedQuestions = [];
+
+    // Bước 2: Lấy đều số lượng câu hỏi từ mỗi nhóm
+    categories.forEach((cat, index) => {
+        const shuffledGroup = [...groups[cat]].sort(() => 0.5 - Math.random());
+        
+        // Nếu là hạng mục cuối cùng, lấy bù cho đủ 20 câu (phòng trường hợp chia dư)
+        let countToTake = questionsPerCategory;
+        if (index === categories.length - 1) {
+            countToTake = totalTarget - selectedQuestions.length;
+        }
+
+        const picked = shuffledGroup.slice(0, countToTake);
+        selectedQuestions = [...selectedQuestions, ...picked];
+    });
+
+    // Bước 3: Trộn tổng thể danh sách đã chọn
+    currentQuiz = selectedQuestions.sort(() => 0.5 - Math.random());
+
+    // --- KẾT THÚC LOGIC CHIA TỶ LỆ ---
+
+    // 2. Bắt đầu Render giao diện
+    const qContainer = document.getElementById('quiz-content');
+    const bContainer = document.getElementById('bubble-sheet');
+    
+    qContainer.innerHTML = '';
+    bContainer.innerHTML = '';
+
+    currentQuiz.forEach((item, i) => {
+        const qCard = document.createElement('div');
+        qCard.className = 'question-card shadow-sm transition-all duration-300';
+        qCard.id = `q-card-${i}`;
+        
+        const imgHtml = item.img ? `
+            <div class="q-image-container">
+                <img src="${item.img}" alt="Minh họa" class="q-image" onerror="this.parentElement.style.display='none'">
+            </div>
+        ` : '';
+
+        qCard.innerHTML = `
+            <div class="flex gap-4">
+                <span class="bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-full font-bold flex-shrink-0">${i+1}</span>
+                <div class="flex-1">
+                    <p class="japanese-text text-xl font-bold leading-relaxed mb-1">${item.q}</p>
+                    <p class="text-gray-400 italic text-sm mb-4">${item.r}</p>
+                    ${imgHtml}
+                    <div id="result-area-${i}" class="hidden mt-4 space-y-2">
+                        <div class="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                            <p class="text-blue-800 text-sm font-bold mb-1">DỊCH:</p>
+                            <p class="text-gray-700 font-medium">${item.v}</p>
+                        </div>
+                        <div id="expl-box-${i}" class="p-3 rounded-lg text-sm border"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        qContainer.appendChild(qCard);
+
+        const rowLabel = document.createElement('div');
+        rowLabel.className = 'flex items-center justify-center font-bold text-gray-400';
+        rowLabel.innerText = i + 1;
+
+        const btnT = document.createElement('button');
+        btnT.id = `bubble-${i}-t`;
+        btnT.className = 'bubble-btn';
+        btnT.innerHTML = '正しい (Đúng)';
+        btnT.onclick = () => selectBubble(i, true);
+
+        const btnF = document.createElement('button');
+        btnF.id = `bubble-${i}-f`;
+        btnF.className = 'bubble-btn';
+        btnF.innerHTML = '誤り (Sai)';
+        btnF.onclick = () => selectBubble(i, false);
+
+        bContainer.appendChild(rowLabel);
+        bContainer.appendChild(btnT);
+        bContainer.appendChild(btnF);
+    });
+
+    document.getElementById('score-display').classList.add('hidden');
+    document.getElementById('retry-btn').classList.add('hidden');
+    document.getElementById('submit-btn').classList.remove('hidden');
+    qContainer.scrollTop = 0;
+    
+    if(!sidebarOpen) toggleSidebar();
+    startTimer();
+}
+
+    function selectBubble(idx, val) {
+        if(isSubmitted) return;
+        answers[idx] = val;
+        document.getElementById(`bubble-${idx}-t`).className = 'bubble-btn' + (val === true ? ' selected-true' : '');
+        document.getElementById(`bubble-${idx}-f`).className = 'bubble-btn' + (val === false ? ' selected-false' : '');
+    }
+
+    function submitQuiz(force = false) {
+        if(!force && Object.keys(answers).length < currentQuiz.length) {
+            const count = currentQuiz.length - Object.keys(answers).length;
+            if(!confirm(`Bạn còn ${count} câu chưa chọn. Vẫn muốn nộp bài?`)) return;
+        }
+
+        isSubmitted = true;
+        clearInterval(timerInterval);
+        let score = 0;
+
+        currentQuiz.forEach((item, i) => {
+            const isCorrect = answers[i] === item.a;
+            if(isCorrect) score++;
+            
+            const card = document.getElementById(`q-card-${i}`);
+            card.className = `question-card ${isCorrect ? 'correct' : 'incorrect'}`;
+            
+            document.getElementById(`result-area-${i}`).classList.remove('hidden');
+            
+            const explBox = document.getElementById(`expl-box-${i}`);
+            explBox.className = `p-3 rounded-lg text-sm border ${isCorrect ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`;
+            explBox.innerHTML = `
+                <p class="font-bold mb-1">GIẢI THÍCH:</p>
+                <p>Đáp án đúng: <strong>${item.a ? '正しい (Đúng)' : '誤り (Sai)'}</strong></p>
+                <p class="mt-1">${item.e}</p>
+            `;
+        });
+
+        const pass = score >= 17; // điểm thi trên 17 đậu 
+        document.getElementById('score-display').classList.remove('hidden');
+        document.getElementById('final-score').innerText = `${score} / ${currentQuiz.length}`;
+        document.getElementById('result-text').innerText = pass ? "KẾT QUẢ: ĐẠT" : "KẾT QUẢ: CHƯA ĐẠT";
+        document.getElementById('result-text').className = `text-sm font-bold mt-1 ${pass ? 'text-green-700' : 'text-red-700'}`;
+        document.getElementById('submit-btn').classList.add('hidden');
+        document.getElementById('retry-btn').classList.remove('hidden');
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderList() {
+        const container = document.getElementById('full-list-content');
+        container.innerHTML = '<h1 class="text-3xl font-black mb-8 text-slate-800 border-l-8 border-blue-600 pl-4 uppercase">Thư viện câu hỏi ôn tập</h1>';
+        
+        const groups = {};
+        rawData.forEach(d => {
+            if(!groups[d.cat]) groups[d.cat] = [];
+            groups[d.cat].push(d);
+        });
+
+        for(const cat in groups) {
+            const section = document.createElement('div');
+            section.className = 'mb-10';
+            section.innerHTML = `<h2 class="text-xl font-bold text-blue-700 mb-4 border-b pb-2">${cat}</h2>`;
+            
+            groups[cat].forEach((item) => {
+                const row = document.createElement('div');
+                row.className = 'mb-4 p-4 rounded-xl bg-gray-50 border border-gray-200';
+                
+                const imgPart = item.img ? `
+                    <div class="mt-4">
+                        <img src="${item.img}" class="max-w-xs h-auto rounded border bg-white p-1">
+                    </div>
+                ` : '';
+
+                row.innerHTML = `
+                    <p class="japanese-text font-bold text-lg">${item.q} <span class="${item.a ? 'text-green-600' : 'text-red-600'}">${item.a ? '[○]' : '[×]'}</span></p>
+                    <p class="text-gray-400 text-xs italic mb-2">${item.r}</p>
+                    <div class="mt-2 space-y-1">
+                        <p class="text-sm"><span class="font-bold text-blue-600">Dịch:</span> ${item.v}</p>
+                        <p class="text-sm text-gray-600"><span class="font-bold text-gray-800">Giải thích:</span> ${item.e}</p>
+                    </div>
+                    ${imgPart}
+                `;
+                section.appendChild(row);
+            });
+            container.appendChild(section);
+        }
+    }
+
+    window.onload = initQuiz;
+</script>
+</body>
+</html>
